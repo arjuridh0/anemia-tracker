@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { 
   Users, 
@@ -42,6 +43,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 const COLORS = ['#16a34a', '#ea580c', '#dc2626', '#9333ea'];
 
 export default function Admin() {
+  const navigate = useNavigate();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [password, setPassword] = useState('');
   const [activeTab, setActiveTab] = useState('overview');
@@ -60,6 +62,13 @@ export default function Admin() {
       fetchData();
     }
   }, [isAuthenticated, activeTab]);
+
+  const handleLogout = () => {
+    setIsAuthenticated(false);
+    setPassword('');
+    localStorage.removeItem('adminToken');
+    navigate('/');
+  };
 
   const handleLogin = (e) => {
     e.preventDefault();
@@ -257,7 +266,7 @@ export default function Admin() {
 
               <div className="p-6 border-t border-gray-100">
                 <button 
-                  onClick={() => setIsAuthenticated(false)}
+                  onClick={handleLogout}
                   className="w-full flex items-center gap-4 px-5 py-4 rounded-2xl text-red-500 font-bold hover:bg-red-50 transition-all"
                 >
                   <LogOut className="w-5 h-5" />
@@ -298,7 +307,7 @@ export default function Admin() {
 
         <div className="p-6 border-t border-gray-100">
           <button 
-            onClick={() => setIsAuthenticated(false)}
+            onClick={handleLogout}
             className="w-full flex items-center gap-4 px-5 py-4 rounded-2xl text-red-500 font-bold hover:bg-red-50 transition-all"
           >
             <LogOut className="w-5 h-5" />

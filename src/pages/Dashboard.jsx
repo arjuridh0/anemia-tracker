@@ -43,43 +43,42 @@ export default function Dashboard() {
   const [avatar] = useState(() => localStorage.getItem('avatar') || '🦸‍♀️');
 
   // Daily question state
-  const [dailyQ, setDailyQ] = useState(null);
-  const [dailyAnswered, setDailyAnswered] = useState(false);
-  const [dailyCorrect, setDailyCorrect] = useState(null);
-
-  // TTD reminder state
-  const [showTtdReminder, setShowTtdReminder] = useState(false);
-
-  useEffect(() => {
-    if (!localStorage.getItem('user')) navigate('/login');
-
-    // Daily question logic
+  const [dailyQ, setDailyQ] = useState(() => {
     const todayKey = getTodayKey();
     const savedDailyKey = localStorage.getItem('dailyQuestionDate');
     const savedDailyId = localStorage.getItem('dailyQuestionId');
 
     if (savedDailyKey === todayKey && savedDailyId) {
-      // Already have a question for today
       const qId = parseInt(savedDailyId);
-      setDailyQ(questions.find(q => q.id === qId) || questions[0]);
-      setDailyAnswered(localStorage.getItem('dailyAnswered') === todayKey);
-    } else {
-      // Pick new random question for today
+      return questions?.find(q => q.id === qId) || questions[0];
+    } else if (questions && questions.length > 0) {
       const randomQ = questions[Math.floor(Math.random() * questions.length)];
       localStorage.setItem('dailyQuestionDate', todayKey);
       localStorage.setItem('dailyQuestionId', randomQ.id.toString());
       localStorage.removeItem('dailyAnswered');
-      setDailyQ(randomQ);
-      setDailyAnswered(false);
+      return randomQ;
     }
+    return null;
+  });
 
-    // TTD Reminder check
+  const [dailyAnswered, setDailyAnswered] = useState(() => {
+    return localStorage.getItem('dailyAnswered') === getTodayKey();
+  });
+
+  const [dailyCorrect, setDailyCorrect] = useState(null);
+
+  // TTD reminder state
+  const [showTtdReminder, setShowTtdReminder] = useState(() => {
+    const todayKey = getTodayKey();
     const ttdDay = localStorage.getItem('ttdDay');
+    if (!ttdDay) return false;
     const todayName = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'][new Date().getDay()];
     const ttdDismissed = localStorage.getItem('ttdDismissed');
-    if (ttdDay && ttdDay === todayName && ttdDismissed !== todayKey) {
-      setShowTtdReminder(true);
-    }
+    return ttdDay === todayName && ttdDismissed !== todayKey;
+  });
+
+  useEffect(() => {
+    if (!localStorage.getItem('user')) navigate('/login');
   }, [navigate]);
 
   const handleCheck = async (type) => {
@@ -161,7 +160,7 @@ export default function Dashboard() {
       {/* ===== TTD REMINDER MODAL ===== */}
       {showTtdReminder && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-6">
-          <div className="bg-white rounded-3xl p-6 w-full max-w-[360px] text-center shadow-2xl">
+          <div className="bg-white rounded-3xl p-6 w-full max-w-90 text-center shadow-2xl">
             <div className="text-7xl mb-4">💊</div>
             <h2 className="text-xl font-black text-gray-900 mb-2">Hari Ini Jadwal TTD-mu!</h2>
             <p className="text-sm text-gray-500 font-medium leading-relaxed mb-6">

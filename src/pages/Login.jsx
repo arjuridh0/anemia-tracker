@@ -162,6 +162,17 @@ export default function Login() {
           >
             {loading ? 'Memuat Data... ⏳' : 'Mulai Petualangan →'}
           </button>
+
+          {/* Admin Link */}
+          <div className="text-center mt-6">
+            <button
+              type="button"
+              onClick={() => navigate('/admin')}
+              className="text-[11px] font-black text-gray-400 uppercase tracking-widest hover:text-primary-600 transition-colors"
+            >
+              🔒 Akses Portal Admin
+            </button>
+          </div>
         </form>
       </div>
     </div>
