@@ -72,6 +72,13 @@ function App() {
         });
         console.log('OneSignal Initialized');
 
+        // Memancing prompt "Izinkan Notifikasi" untuk tampil via SDK v16
+        try {
+          await OneSignal.Slidedown.promptPush();
+        } catch (promptErr) {
+          console.warn('Slidedown prompt diabaikan/sudah dijawab:', promptErr);
+        }
+
         // Fungsi helper: simpan Subscription ID ke Supabase
         const saveSubscriptionId = async (subscriptionId) => {
           if (!subscriptionId) return;
