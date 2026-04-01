@@ -1,4 +1,27 @@
-# Logs
+# ============================================================
+# 🛡️ .gitignore - Cegah Anemia Web App
+# ============================================================
+
+# Dependencies
+node_modules
+
+# Build output
+dist
+dist-ssr
+
+# ============================================================
+# 🔒 FILE RAHASIA (WAJIB DIBLOKIR!)
+# ============================================================
+# Environment variables (Supabase keys, OneSignal App ID)
+.env
+.env.*
+
+# Script SQL berisi REST API Key OneSignal (SANGAT RAHASIA!)
+supabase_cron_setup.sql
+
+# ============================================================
+# Log files
+# ============================================================
 logs
 *.log
 npm-debug.log*
@@ -7,23 +30,17 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
-*.local
-
-# Environment variables (API keys, secrets)
-.env
-.env.local
-.env.production
-
-# Editor directories and files
+# ============================================================
+# Editor & OS files (sampah sistem)
+# ============================================================
 .vscode/*
 !.vscode/extensions.json
 .idea
 .DS_Store
+Thumbs.db
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
+*.local

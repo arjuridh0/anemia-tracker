@@ -1,5 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, useNavigate, Navigate } from 'react-router-dom';
 import { useEffect } from 'react';
+import OneSignal from 'react-onesignal';
+import { supabase } from './lib/supabase';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import ModuleDetail from './pages/ModuleDetail';
@@ -57,6 +59,61 @@ function Splash() {
 }
 
 function App() {
+  useEffect(() => {
+    const initOneSignal = async () => {
+      const appId = import.meta.env.VITE_ONESIGNAL_APP_ID;
+      if (!appId) return;
+
+      try {
+        await OneSignal.init({
+          appId: appId,
+          allowLocalhostAsSecureOrigin: true,
+          notifyButton: { enable: false },
+        });
+        console.log('OneSignal Initialized');
+
+        // Fungsi helper: simpan Subscription ID ke Supabase
+        const saveSubscriptionId = async (subscriptionId) => {
+          if (!subscriptionId) return;
+          const userId = localStorage.getItem('user_id');
+          if (!userId) return;
+
+          // Cegah spam: hanya update jika ID berubah
+          const savedId = localStorage.getItem('onesignal_sub_id');
+          if (savedId === subscriptionId) return;
+
+          try {
+            await supabase
+              .from('respondents')
+              .update({ onesignal_id: subscriptionId })
+              .eq('id', userId);
+            localStorage.setItem('onesignal_sub_id', subscriptionId);
+            console.log('OneSignal Subscription ID saved:', subscriptionId);
+          } catch (err) {
+            console.error('Gagal simpan OneSignal ID:', err);
+          }
+        };
+
+        // Coba ambil ID langsung (jika sudah tersedia)
+        const currentId = OneSignal.User?.pushSubscription?.id;
+        if (currentId) {
+          saveSubscriptionId(currentId);
+        }
+
+        // Observer: dengarkan perubahan subscription (jika user baru izinkan notif)
+        OneSignal.User.pushSubscription.addObserver((event) => {
+          if (event.current?.id) {
+            saveSubscriptionId(event.current.id);
+          }
+        });
+
+      } catch (error) {
+        console.error('Error initializing OneSignal:', error);
+      }
+    };
+    initOneSignal();
+  }, []);
+
   return (
     <Router>
       <Routes>

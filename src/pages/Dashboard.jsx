@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Flame, CheckCheck } from 'lucide-react';
+import { Flame, CheckCheck, AlertTriangle } from 'lucide-react';
 import { questions } from '../data/questions';
 import BottomNav from '../components/BottomNav';
 import { supabase } from '../lib/supabase';
@@ -43,7 +43,7 @@ export default function Dashboard() {
   const [avatar] = useState(() => localStorage.getItem('avatar') || '🦸‍♀️');
 
   // Daily question state
-  const [dailyQ, setDailyQ] = useState(() => {
+  const [dailyQ] = useState(() => {
     const todayKey = getTodayKey();
     const savedDailyKey = localStorage.getItem('dailyQuestionDate');
     const savedDailyId = localStorage.getItem('dailyQuestionId');
@@ -67,14 +67,29 @@ export default function Dashboard() {
 
   const [dailyCorrect, setDailyCorrect] = useState(null);
 
-  // TTD reminder state
-  const [showTtdReminder, setShowTtdReminder] = useState(() => {
-    const todayKey = getTodayKey();
-    const ttdDay = localStorage.getItem('ttdDay');
-    if (!ttdDay) return false;
+  // Missed TTD Warning state
+  const [missedTtd, setMissedTtd] = useState(() => {
+    const ttdDayStr = localStorage.getItem('ttdDay');
+    if (!ttdDayStr) return false;
+    
     const todayName = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'][new Date().getDay()];
-    const ttdDismissed = localStorage.getItem('ttdDismissed');
-    return ttdDay === todayName && ttdDismissed !== todayKey;
+    const isToday = ttdDayStr === 'Setiap Hari' || ttdDayStr.includes(todayName);
+    if (!isToday) return false;
+
+    // Check time
+    const ttdTimeStr = localStorage.getItem('ttdTime') || '';
+    const times = ttdTimeStr.split(', ');
+    const now = new Date();
+    let hasPassed = false;
+
+    for (let t of times) {
+      if(!t) continue;
+      const [h, m] = t.split(':');
+      const schDate = new Date();
+      schDate.setHours(parseInt(h), parseInt(m), 0);
+      if (now > schDate) { hasPassed = true; break; }
+    }
+    return hasPassed;
   });
 
   useEffect(() => {
@@ -90,6 +105,7 @@ export default function Dashboard() {
       setTtdChecked(newValue);
       if (newValue) {
         logTtdToSupabase();
+        setMissedTtd(false); // Hide warning directly when checked
       }
     } else {
       setSayurChecked(prev => !prev);
@@ -133,16 +149,6 @@ export default function Dashboard() {
     }
   };
 
-  const handleTtdDone = () => {
-    setShowTtdReminder(false);
-    setTtdChecked(true);
-    localStorage.setItem('ttdDismissed', getTodayKey());
-    logTtdToSupabase();
-  };
-
-  const handleTtdLater = () => {
-    setShowTtdReminder(false);
-  };
 
   const tip = tips[tipIndex];
   const greeting = new Date().getHours() < 12 ? 'Selamat Pagi' : new Date().getHours() < 17 ? 'Selamat Siang' : 'Selamat Malam';
@@ -157,37 +163,23 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen pb-32" style={{ background: '#f5f5f5' }}>
 
-      {/* ===== TTD REMINDER MODAL ===== */}
-      {showTtdReminder && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-6">
-          <div className="bg-white rounded-3xl p-6 w-full max-w-90 text-center shadow-2xl">
-            <div className="text-7xl mb-4">💊</div>
-            <h2 className="text-xl font-black text-gray-900 mb-2">Hari Ini Jadwal TTD-mu!</h2>
-            <p className="text-sm text-gray-500 font-medium leading-relaxed mb-6">
-              Sudah minum Tablet Tambah Darah hari ini belum, Warrior?
-            </p>
-            <div className="space-y-3">
-              <button
-                onClick={handleTtdDone}
-                className="w-full py-4 rounded-2xl font-black text-white text-[15px] shadow-lg active:scale-[0.97] transition-all"
-                style={{ background: 'linear-gradient(135deg, #15803d, #22c55e)', boxShadow: '0 8px 25px rgba(34,197,94,0.35)' }}
-              >
-                ✅ Sudah Minum!
-              </button>
-              <button
-                onClick={handleTtdLater}
-                className="w-full py-3.5 rounded-2xl font-bold text-gray-500 text-sm bg-gray-50 border border-gray-200 active:scale-[0.97] transition-all"
-              >
-                Nanti Dulu
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* ===== HEADER ===== */}
       <div className="relative overflow-hidden px-5 pt-10 pb-8 rounded-b-[40px]" style={{ background: 'linear-gradient(145deg, #15803d 0%, #16a34a 60%, #ea580c 160%)' }}>
-        <div className="absolute -top-8 -right-8 w-40 h-40 rounded-full border-[3px] border-white/10"></div>
+        
+        {/* MISSED TTD WARNING BANNER */}
+        {missedTtd && !ttdChecked && (
+          <div className="mb-6 bg-red-500/90 backdrop-blur-md rounded-2xl p-4 border border-red-400/50 flex gap-3 shadow-[0_8px_30px_rgba(220,38,38,0.3)] animate-pulse" style={{ animationDuration: '3s' }}>
+            <AlertTriangle className="w-8 h-8 text-white shrink-0 mt-0.5" />
+            <div>
+              <p className="text-white font-black text-sm tracking-wide">Peringatan: Lupa Minum TTD! 💊</p>
+              <p className="text-white/90 text-[11px] font-medium mt-1 leading-relaxed">
+                Jadwal minum Tablet Tambah Darah-mu sudah lewat. Ayo cepat diminum dan centang misi di bawah ya!
+              </p>
+            </div>
+          </div>
+        )}
+
+        <div className="absolute -top-8 -right-8 w-40 h-40 rounded-full border-[3px] border-white/10 pointer-events-none"></div>
         <div className="absolute -top-4 -right-4 w-28 h-28 rounded-full border-[3px] border-white/10"></div>
         <div className="absolute top-6 right-5 w-16 h-16 rounded-full bg-white/10"></div>
 

@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
+import { Plus, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import BottomNav from '../components/BottomNav';
 import { supabase } from '../lib/supabase';
 
 const avatars = ['🦸‍♀️', '👩‍🔬', '🧕', '👩‍🎓', '🧜‍♀️', '🦹‍♀️', '👩‍⚕️', '🧚‍♀️', '👩‍🍳', '💃'];
 const days = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
-const hours = Array.from({ length: 24 }, (_, i) => `${String(i).padStart(2, '0')}:00`);
 
 export default function Profile() {
   const [user, setUser] = useState(() => {
@@ -18,8 +18,19 @@ export default function Profile() {
     const saved = localStorage.getItem('user');
     return saved ? JSON.parse(saved).nama : '';
   });
-  const [ttdDay, setTtdDay] = useState(() => localStorage.getItem('ttdDay') || 'Jumat');
-  const [ttdTime, setTtdTime] = useState(() => localStorage.getItem('ttdTime') || '20:00');
+  const [ttdCycle, setTtdCycle] = useState(() => {
+    const d = localStorage.getItem('ttdDay');
+    return d === 'Setiap Hari' ? 'harian' : 'mingguan';
+  });
+  const [ttdDays, setTtdDays] = useState(() => {
+    const d = localStorage.getItem('ttdDay');
+    if (!d || d === 'Setiap Hari') return ['Jumat'];
+    return d.split(', ');
+  });
+  const [ttdTimes, setTtdTimes] = useState(() => {
+    const t = localStorage.getItem('ttdTime');
+    return t ? t.split(', ') : ['20:00'];
+  });
   const navigate = useNavigate();
   const [showAvatarPicker, setShowAvatarPicker] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -38,10 +49,13 @@ export default function Profile() {
 // ...
   const saveProfile = async () => {
     const updatedUser = { ...user, nama: tempName.trim() || user.nama };
+    const savedDayString = ttdCycle === 'harian' ? 'Setiap Hari' : ttdDays.join(', ');
+    const savedTimeString = ttdTimes.join(', ');
+
     localStorage.setItem('user', JSON.stringify(updatedUser));
     localStorage.setItem('avatar', avatar);
-    localStorage.setItem('ttdDay', ttdDay);
-    localStorage.setItem('ttdTime', ttdTime);
+    localStorage.setItem('ttdDay', savedDayString);
+    localStorage.setItem('ttdTime', savedTimeString);
     setUser(updatedUser);
     setEditingName(false);
     
@@ -54,8 +68,8 @@ export default function Profile() {
           .update({
             nama: updatedUser.nama,
             avatar: avatar,
-            ttd_day: ttdDay,
-            ttd_time: ttdTime,
+            ttd_day: savedDayString,
+            ttd_time: savedTimeString,
             updated_at: new Date().toISOString()
           })
           .eq('id', userId);
@@ -161,37 +175,89 @@ export default function Profile() {
         {/* === Jadwal Minum TTD === */}
         <div className="bg-white rounded-3xl p-5 shadow-sm border border-gray-100">
           <p className="text-xs font-black text-gray-400 uppercase tracking-widest mb-1">💊 Jadwal Minum TTD</p>
-          <p className="text-[10px] text-gray-400 font-medium mb-4">Atur pengingat minum Tablet Tambah Darah</p>
+          <p className="text-[10px] text-gray-400 font-medium mb-4">Atur siklus pengingat minum Tablet Tambah Darah-mu</p>
 
-          <div className="grid grid-cols-2 gap-3 mb-3">
-            {/* Day picker */}
-            <div>
-              <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5 block">Hari</label>
-              <select
-                value={ttdDay}
-                onChange={(e) => setTtdDay(e.target.value)}
-                className="w-full p-3 rounded-2xl bg-green-50 border-2 border-green-200 text-gray-800 font-bold text-sm outline-none appearance-none"
+          {/* Type Selector */}
+          <div className="flex bg-gray-50 p-1 rounded-2xl mb-4 border border-gray-100">
+            {['mingguan', 'harian'].map(type => (
+              <button
+                key={type}
+                onClick={() => setTtdCycle(type)}
+                className={`flex-1 py-2 text-xs font-black rounded-xl transition-all capitalize ${ttdCycle === type ? 'bg-white shadow-sm text-green-600' : 'text-gray-400 hover:text-gray-600'}`}
               >
-                {days.map(d => <option key={d} value={d}>{d}</option>)}
-              </select>
+                {type}
+              </button>
+            ))}
+          </div>
+
+          {/* Day Selector (Only if Mingguan) */}
+          {ttdCycle === 'mingguan' && (
+            <div className="mb-4">
+              <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2 block">Pilih Hari (Bisa Lebih Dari 1)</label>
+              <div className="flex flex-wrap gap-2">
+                {days.map(d => {
+                  const isSelected = ttdDays.includes(d);
+                  return (
+                    <button
+                      key={d}
+                      onClick={() => {
+                        if (isSelected && ttdDays.length > 1) {
+                          setTtdDays(ttdDays.filter(day => day !== d));
+                        } else if (!isSelected) {
+                          setTtdDays([...ttdDays, d]);
+                        }
+                      }}
+                      className={`px-3 py-1.5 rounded-full text-[11px] font-bold transition-all border ${isSelected ? 'bg-green-100 border-green-300 text-green-700' : 'bg-gray-50 border-gray-200 text-gray-500 hover:bg-gray-100'}`}
+                    >
+                      {d}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
+          )}
 
-            {/* Time picker */}
-            <div>
-              <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5 block">Jam</label>
-              <select
-                value={ttdTime}
-                onChange={(e) => setTtdTime(e.target.value)}
-                className="w-full p-3 rounded-2xl bg-green-50 border-2 border-green-200 text-gray-800 font-bold text-sm outline-none appearance-none"
-              >
-                {hours.map(h => <option key={h} value={h}>{h}</option>)}
-              </select>
+          {/* Time Picker */}
+          <div className="mb-4">
+            <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2 block">Jam Minum ({ttdTimes.length}x Sehari)</label>
+            <div className="space-y-2">
+              {ttdTimes.map((time, idx) => (
+                <div key={idx} className="flex items-center gap-2">
+                  <input
+                    type="time"
+                    value={time}
+                    onChange={(e) => {
+                      const newTimes = [...ttdTimes];
+                      newTimes[idx] = e.target.value;
+                      setTtdTimes(newTimes);
+                    }}
+                    className="flex-1 p-3 rounded-2xl bg-green-50 border-2 border-green-200 text-gray-800 font-bold text-sm outline-none w-full appearance-none"
+                  />
+                  {ttdTimes.length > 1 && (
+                    <button 
+                      onClick={() => setTtdTimes(ttdTimes.filter((_, i) => i !== idx))}
+                      className="p-3 bg-red-50 text-red-500 rounded-2xl border-2 border-red-100 hover:bg-red-100 transition-colors"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  )}
+                </div>
+              ))}
+              
+              {ttdTimes.length < 3 && (
+                <button
+                  onClick={() => setTtdTimes([...ttdTimes, '12:00'])}
+                  className="w-full py-3 flex items-center justify-center gap-2 text-xs font-bold text-green-600 bg-green-50/50 border border-dashed border-green-300 rounded-2xl hover:bg-green-50 transition-colors"
+                >
+                  <Plus className="w-4 h-4" /> Tambah Waktu
+                </button>
+              )}
             </div>
           </div>
 
           <div className="bg-amber-50 rounded-2xl p-3 border border-amber-100">
-            <p className="text-xs text-amber-700 font-medium leading-snug">
-              ⏰ Pengingat aktif setiap <strong>{ttdDay}</strong> pukul <strong>{ttdTime}</strong>. Kamu akan diingatkan saat membuka aplikasi!
+            <p className="text-[11px] text-amber-700 font-medium leading-relaxed">
+              ⏰ Jadwalmu: <strong>{ttdCycle === 'harian' ? 'Setiap Hari' : ttdDays.join(', ')}</strong> pukul <strong>{ttdTimes.join(', ')}</strong>. Pastikan tidak terlewat ya!
             </p>
           </div>
         </div>

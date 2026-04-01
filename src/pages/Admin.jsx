@@ -19,7 +19,8 @@ import {
   XCircle,
   Clock,
   Menu,
-  X
+  X,
+  Trash2
 } from 'lucide-react';
 import { 
   BarChart, 
@@ -146,6 +147,30 @@ export default function Admin() {
     link.href = url;
     link.download = `Data_Responden_${new Date().toLocaleDateString()}.csv`;
     link.click();
+  };
+
+  const handleDeleteRespondent = async (id, kode, nama) => {
+    if (window.confirm(`Yakin ingin MENGHAPUS responden "${nama}" secara permanen? \nData progres dan tes akan hilang selamanya.`)) {
+      setLoading(true);
+      try {
+        // 1. Delete the user
+        const { error: delError } = await supabase.from('respondents').delete().eq('id', id);
+        if (delError) throw delError;
+
+        // 2. Free up the code so another user can register using it again
+        const { error: codeError } = await supabase.from('respondent_codes').update({ is_used: false }).eq('code', kode);
+        if (codeError) throw codeError;
+
+        // Force UI refresh
+        await fetchData();
+        alert('Responden berhasil dihapus dan Kode sudah dirilis kembali.');
+      } catch (err) {
+        console.error('Delete Error:', err);
+        alert('Gagal menghapus responden: ' + err.message);
+      } finally {
+        setLoading(false);
+      }
+    }
   };
 
   // Process data for charts
@@ -577,6 +602,7 @@ export default function Admin() {
                           <th className="px-6 py-5 text-center text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Pre ⮕ Post</th>
                           <th className="px-6 py-5 text-center text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Modul</th>
                           <th className="px-6 py-5 text-center text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">TTD Log</th>
+                          <th className="px-6 py-5 text-center text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Aksi</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-50">
@@ -627,6 +653,15 @@ export default function Admin() {
                                 {(r.ttd_logs?.length || 0) >= 3 ? <CheckCircle2 className="w-3 h-3" /> : (r.ttd_logs?.length || 0) > 0 ? <Clock className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
                                 {(r.ttd_logs?.length || 0)} kali
                               </span>
+                            </td>
+                            <td className="px-6 py-5 text-center">
+                              <button 
+                                onClick={() => handleDeleteRespondent(r.id, r.kode, r.nama)}
+                                className="p-2 bg-red-50 text-red-400 hover:bg-red-500 hover:text-white rounded-xl transition-colors shrink-0"
+                                title="Hapus Responden"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
                             </td>
                           </motion.tr>
                         ))}
