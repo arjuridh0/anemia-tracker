@@ -33,8 +33,12 @@ export default function Dashboard() {
     const saved = localStorage.getItem('user');
     return saved ? JSON.parse(saved) : { nama: 'Warrior', kode: '' };
   });
-  const [ttdChecked, setTtdChecked] = useState(false);
-  const [sayurChecked, setSayurChecked] = useState(false);
+  const [ttdChecked, setTtdChecked] = useState(() => {
+    return localStorage.getItem('ttdChecked') === getTodayKey();
+  });
+  const [sayurChecked, setSayurChecked] = useState(() => {
+    return localStorage.getItem('sayurChecked') === getTodayKey();
+  });
   const [completedModules] = useState(() => JSON.parse(localStorage.getItem('completedModules') || '[]'));
   const [lastScore] = useState(() => { const s = localStorage.getItem('lastScore'); return s ? parseInt(s) : null; });
   const [pretestScore] = useState(() => { const p = localStorage.getItem('pretestScore'); return p ? parseInt(p) : null; });
@@ -99,16 +103,26 @@ export default function Dashboard() {
   const handleCheck = async (type) => {
     setAnimateCheck(type);
     setTimeout(() => setAnimateCheck(null), 600);
-    
+    const today = getTodayKey();
+
     if (type === 'ttd') {
       const newValue = !ttdChecked;
       setTtdChecked(newValue);
       if (newValue) {
+        localStorage.setItem('ttdChecked', today);
         logTtdToSupabase();
         setMissedTtd(false); // Hide warning directly when checked
+      } else {
+        localStorage.removeItem('ttdChecked');
       }
     } else {
-      setSayurChecked(prev => !prev);
+      const newValue = !sayurChecked;
+      setSayurChecked(newValue);
+      if (newValue) {
+        localStorage.setItem('sayurChecked', today);
+      } else {
+        localStorage.removeItem('sayurChecked');
+      }
     }
   };
 
