@@ -94,18 +94,23 @@ function App() {
           }
         };
 
-        // Coba ambil ID langsung (jika sudah tersedia)
-        const currentId = OneSignal.User?.pushSubscription?.id;
-        if (currentId) {
-          saveSubscriptionId(currentId);
+        // SDK v16: Coba ambil ID langsung
+        try {
+          const currentId = OneSignal.User?.PushSubscription?.id;
+          if (currentId) saveSubscriptionId(currentId);
+        } catch {
+          // ID belum tersedia, akan ditangkap observer di bawah
         }
 
-        // Observer: dengarkan perubahan subscription (jika user baru izinkan notif)
-        OneSignal.User.pushSubscription.addObserver((event) => {
-          if (event.current?.id) {
-            saveSubscriptionId(event.current.id);
-          }
-        });
+        // SDK v16: Dengarkan perubahan subscription via addEventListener
+        try {
+          OneSignal.User.PushSubscription.addEventListener('change', (event) => {
+            const newId = event?.current?.id;
+            if (newId) saveSubscriptionId(newId);
+          });
+        } catch (e) {
+          console.warn('OneSignal observer fallback:', e);
+        }
 
       } catch (error) {
         console.error('Error initializing OneSignal:', error);
