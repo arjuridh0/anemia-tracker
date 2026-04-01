@@ -97,7 +97,34 @@ export default function Dashboard() {
   });
 
   useEffect(() => {
-    if (!localStorage.getItem('user')) navigate('/login');
+    if (!localStorage.getItem('user')) {
+      navigate('/login');
+      return;
+    }
+
+    // Sinkronisasi data dari Supabase jika user baru saja relogin / ganti HP
+    const syncData = async () => {
+      const userId = localStorage.getItem('user_id');
+      if (!userId) return;
+      try {
+        const { data } = await supabase.from('respondents').select('ttd_logs').eq('id', userId).single();
+        if (data?.ttd_logs) {
+          const today = getTodayKey();
+          if (data.ttd_logs.includes(today)) {
+            setTtdChecked(true);
+            localStorage.setItem('ttdChecked', today);
+            setMissedTtd(false);
+          }
+        }
+      } catch (err) {
+        console.error('Error syncing TTD logs', err);
+      }
+    };
+
+    // Panggil sinkronisasi hanya jika localStorage kosong (misal setelah logout)
+    if (localStorage.getItem('ttdChecked') !== getTodayKey()) {
+      syncData();
+    }
   }, [navigate]);
 
   const handleCheck = async (type) => {
