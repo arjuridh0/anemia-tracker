@@ -3,6 +3,7 @@ import { Plus, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import BottomNav from '../components/BottomNav';
 import { supabase } from '../lib/supabase';
+import { usePopup } from '../components/Popup';
 
 const avatars = ['🦸‍♀️', '👩‍🔬', '🧕', '👩‍🎓', '🧜‍♀️', '🦹‍♀️', '👩‍⚕️', '🧚‍♀️', '👩‍🍳', '💃'];
 const days = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
@@ -32,6 +33,7 @@ export default function Profile() {
     return t ? t.split(', ') : ['20:00'];
   });
   const navigate = useNavigate();
+  const popup = usePopup();
   const [showAvatarPicker, setShowAvatarPicker] = useState(false);
   const [saved, setSaved] = useState(false);
   const [pretestScore] = useState(() => {
@@ -312,8 +314,13 @@ export default function Profile() {
 
         {/* Logout Button */}
         <button
-          onClick={() => {
-            if (window.confirm('Apakah kamu yakin ingin keluar? Semua data lokal akan dihapus.')) {
+          onClick={async () => {
+            const confirmed = await popup.confirm(
+              'Keluar dari Akun?',
+              'Apakah kamu yakin ingin keluar? Semua data lokal akan dihapus dari perangkat ini.',
+              'Ya, Keluar'
+            );
+            if (confirmed) {
               localStorage.clear();
               navigate('/login');
             }

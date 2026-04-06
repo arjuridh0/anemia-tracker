@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
+import { usePopup } from '../components/Popup';
 import { 
   Users, 
   Key, 
@@ -45,6 +46,7 @@ const COLORS = ['#16a34a', '#ea580c', '#dc2626', '#9333ea'];
 
 export default function Admin() {
   const navigate = useNavigate();
+  const popup = usePopup();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [password, setPassword] = useState('');
   const [activeTab, setActiveTab] = useState('overview');
@@ -76,7 +78,7 @@ export default function Admin() {
     if (password === correctPassword) {
       setIsAuthenticated(true);
     } else {
-      alert('Password salah!');
+      popup.error('Akses Ditolak', 'Password yang Anda masukkan salah!');
     }
   };
 
@@ -145,14 +147,14 @@ export default function Admin() {
       }
 
       if (newCodes.length < generateCount) {
-        alert(`Hanya berhasil membuat ${newCodes.length} kode unik dari ${generateCount} yang diminta.`);
+        await popup.warning('Sebagian Berhasil', `Hanya berhasil membuat ${newCodes.length} kode unik dari ${generateCount} yang diminta.`);
       }
 
       // 3. Insert ke database
       const { error: err } = await supabase.from('respondent_codes').insert(newCodes);
       if (err) throw err;
       await fetchData();
-      alert(`✅ ${newCodes.length} kode unik berhasil dibuat!`);
+      popup.success('Kode Berhasil Dibuat', `${newCodes.length} kode unik berhasil ditambahkan ke daftar!`);
     } catch (err) {
       console.error('Insert Error:', err);
       setError('Gagal membuat kode: ' + (err.message || 'Cek koneksi database.'));
@@ -162,7 +164,8 @@ export default function Admin() {
   };
 
   const handleDeleteCode = async (code) => {
-    if (!window.confirm(`Yakin ingin menghapus kode "${code}"?`)) return;
+    const confirmed = await popup.confirm('Hapus Kode?', `Yakin ingin menghapus kode "${code}"?`, 'Ya, Hapus');
+    if (!confirmed) return;
     setLoading(true);
     try {
       const { error: err } = await supabase.from('respondent_codes').delete().eq('code', code);
@@ -170,7 +173,7 @@ export default function Admin() {
       await fetchData();
     } catch (err) {
       console.error('Delete Code Error:', err);
-      alert('Gagal menghapus kode: ' + err.message);
+      popup.error('Gagal Menghapus', 'Gagal menghapus kode: ' + err.message);
     } finally {
       setLoading(false);
     }
@@ -178,24 +181,25 @@ export default function Admin() {
 
   const handleDeleteAllUnusedCodes = async () => {
     const unusedCount = codes.filter(c => !c.is_used).length;
-    if (unusedCount === 0) return alert('Tidak ada kode yang belum terpakai.');
-    if (!window.confirm(`⚠️ Yakin ingin MENGHAPUS ${unusedCount} kode yang belum terpakai?\n\nAksi ini tidak bisa dibatalkan!`)) return;
+    if (unusedCount === 0) { popup.info('Info', 'Tidak ada kode yang belum terpakai.'); return; }
+    const confirmed = await popup.confirm('Hapus Semua?', `Yakin ingin MENGHAPUS ${unusedCount} kode yang belum terpakai?\n\nAksi ini tidak bisa dibatalkan!`, 'Ya, Hapus Semua');
+    if (!confirmed) return;
     setLoading(true);
     try {
       const { error: err } = await supabase.from('respondent_codes').delete().eq('is_used', false);
       if (err) throw err;
       await fetchData();
-      alert(`✅ ${unusedCount} kode berhasil dihapus!`);
+      popup.success('Berhasil Dihapus', `${unusedCount} kode berhasil dihapus!`);
     } catch (err) {
       console.error('Bulk Delete Error:', err);
-      alert('Gagal menghapus kode: ' + err.message);
+      popup.error('Gagal Menghapus', 'Gagal menghapus kode: ' + err.message);
     } finally {
       setLoading(false);
     }
   };
 
   const exportToCSV = () => {
-    if (respondents.length === 0) return alert('Tidak ada data');
+    if (respondents.length === 0) { popup.info('Info', 'Tidak ada data untuk di-export.'); return; }
     const headers = ['Nama', 'Kode', 'Pre-test', 'Post-test', 'Modul Selesai', 'Total TTD', 'Tanggal Daftar'];
     const rows = respondents.map(r => [
       r.nama, r.kode, r.pretest_score, r.posttest_score, 
@@ -212,26 +216,27 @@ export default function Admin() {
   };
 
   const handleDeleteRespondent = async (id, kode, nama) => {
-    if (window.confirm(`Yakin ingin MENGHAPUS responden "${nama}" secara permanen? \nData progres dan tes akan hilang selamanya.`)) {
-      setLoading(true);
-      try {
-        // 1. Delete the user
-        const { error: delError } = await supabase.from('respondents').delete().eq('id', id);
-        if (delError) throw delError;
+    const confirmed = await popup.confirm(
+      'Hapus Responden?',
+      `Yakin ingin MENGHAPUS responden "${nama}" secara permanen?\n\nData progres dan tes akan hilang selamanya.`,
+      'Ya, Hapus Permanen'
+    );
+    if (!confirmed) return;
+    setLoading(true);
+    try {
+      const { error: delError } = await supabase.from('respondents').delete().eq('id', id);
+      if (delError) throw delError;
 
-        // 2. Free up the code so another user can register using it again
-        const { error: codeError } = await supabase.from('respondent_codes').update({ is_used: false }).eq('code', kode);
-        if (codeError) throw codeError;
+      const { error: codeError } = await supabase.from('respondent_codes').update({ is_used: false }).eq('code', kode);
+      if (codeError) throw codeError;
 
-        // Force UI refresh
-        await fetchData();
-        alert('Responden berhasil dihapus dan Kode sudah dirilis kembali.');
-      } catch (err) {
-        console.error('Delete Error:', err);
-        alert('Gagal menghapus responden: ' + err.message);
-      } finally {
-        setLoading(false);
-      }
+      await fetchData();
+      popup.success('Berhasil Dihapus', 'Responden berhasil dihapus dan kode sudah dirilis kembali.');
+    } catch (err) {
+      console.error('Delete Error:', err);
+      popup.error('Gagal Menghapus', 'Gagal menghapus responden: ' + err.message);
+    } finally {
+      setLoading(false);
     }
   };
 

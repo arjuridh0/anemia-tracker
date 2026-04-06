@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
+import { usePopup } from '../components/Popup';
 
 export default function Login() {
   const [kode, setKode] = useState('');
@@ -8,6 +9,7 @@ export default function Login() {
   const [focused, setFocused] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const popup = usePopup();
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -25,7 +27,7 @@ export default function Login() {
           const errorMsg = codeError?.code === 'PGRST116' 
             ? 'Kode tidak ditemukan! Pastikan kode benar.' 
             : `Error Database: ${codeError?.message || 'Kode tidak valid'}`;
-          alert(errorMsg);
+          await popup.error('Kode Tidak Valid', errorMsg);
           setLoading(false);
           return;
         }
@@ -40,7 +42,7 @@ export default function Login() {
         if (existingUser) {
           // VALIDASI NAMA: Nama yang diinput HARUS cocok dengan yang terdaftar
           if (nama.trim().toLowerCase() !== existingUser.nama.toLowerCase()) {
-            alert('⚠️ Nama tidak sesuai dengan kode yang terdaftar!\n\nPastikan kamu mengetik nama yang sama seperti saat pertama kali mendaftar.');
+            await popup.warning('Nama Tidak Cocok', 'Nama tidak sesuai dengan kode yang terdaftar!\n\nPastikan kamu mengetik nama yang sama seperti saat pertama kali mendaftar.');
             setLoading(false);
             return;
           }
@@ -83,11 +85,11 @@ export default function Login() {
         }
       } catch (err) {
         console.error('Auth Error:', err);
-        alert('Terjadi kesalahan: ' + (err.message || 'Cek koneksi database Anda.'));
+        popup.error('Terjadi Kesalahan', err.message || 'Cek koneksi database Anda.');
       }
       setLoading(false);
     } else {
-      alert('Pastikan nama terisi dan kode unik 6 digit ya!');
+      popup.warning('Data Belum Lengkap', 'Pastikan nama terisi dan kode unik 6 digit ya!');
     }
   };
 

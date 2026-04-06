@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route, useNavigate, Navigate } from 'r
 import { useEffect } from 'react';
 import OneSignal from 'react-onesignal';
 import { supabase } from './lib/supabase';
+import { PopupProvider } from './components/Popup';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import ModuleDetail from './pages/ModuleDetail';
@@ -127,51 +128,53 @@ function App() {
   }, []);
 
   return (
-    <Router>
-      <Routes>
-        {/* Route Admin Mandiri (Full Screen) */}
-        <Route path="/admin" element={<Admin />} />
+    <PopupProvider>
+      <Router>
+        <Routes>
+          {/* Route Admin Mandiri (Full Screen) */}
+          <Route path="/admin" element={<Admin />} />
 
-        {/* Route Aplikasi (Phone Wrapper) */}
-        <Route
-          path="*"
-          element={
-            <div
-              className="min-h-screen w-full flex items-start justify-center"
-              style={{
-                background: 'linear-gradient(135deg, #064e3b 0%, #065f46 30%, #047857 60%, #c2410c 100%)',
-              }}
-            >
-              {/* Desktop decorative elements */}
-              <div className="hidden md:flex fixed top-8 left-8 flex-col gap-2 z-10">
-                <p className="text-white/60 text-sm font-bold tracking-widest uppercase">Cegah Anemia Yuk!</p>
-                <p className="text-white/40 text-xs font-medium">Edukasi Remaja Bukittinggi</p>
-              </div>
-              <div className="hidden md:block fixed bottom-8 left-8 text-white/20 text-xs font-medium z-10">
-                ⚠️ Aplikasi ini dioptimasi untuk perangkat mobile
-              </div>
-
-              {/* App container */}
+          {/* Route Aplikasi (Phone Wrapper) */}
+          <Route
+            path="*"
+            element={
               <div
-                className="w-full md:w-97.5 md:my-0 min-h-screen md:min-h-screen bg-white relative overflow-x-hidden font-sans md:shadow-[0_0_0_1px_rgba(255,255,255,0.1),0_25px_80px_rgba(0,0,0,0.5)]"
-                style={{ maxWidth: '430px' }}
+                className="min-h-screen w-full flex items-start justify-center"
+                style={{
+                  background: 'linear-gradient(135deg, #064e3b 0%, #065f46 30%, #047857 60%, #c2410c 100%)',
+                }}
               >
-                <Routes>
-                  <Route path="/" element={<Splash />} />
-                  <Route path="/login" element={<Login />} />
-                  <Route path="/pretest" element={<Pretest />} />
-                  <Route path="/dashboard" element={<RequirePretest><Dashboard /></RequirePretest>} />
-                  <Route path="/modules" element={<RequirePretest><Modules /></RequirePretest>} />
-                  <Route path="/module/:id" element={<RequirePretest><ModuleDetail /></RequirePretest>} />
-                  <Route path="/quiz" element={<RequirePretest><Quiz /></RequirePretest>} />
-                  <Route path="/profile" element={<RequirePretest><Profile /></RequirePretest>} />
-                </Routes>
+                {/* Desktop decorative elements */}
+                <div className="hidden md:flex fixed top-8 left-8 flex-col gap-2 z-10">
+                  <p className="text-white/60 text-sm font-bold tracking-widest uppercase">Cegah Anemia Yuk!</p>
+                  <p className="text-white/40 text-xs font-medium">Edukasi Remaja Bukittinggi</p>
+                </div>
+                <div className="hidden md:block fixed bottom-8 left-8 text-white/20 text-xs font-medium z-10">
+                  ⚠️ Aplikasi ini dioptimasi untuk perangkat mobile
+                </div>
+
+                {/* App container */}
+                <div
+                  className="w-full md:w-97.5 md:my-0 min-h-screen md:min-h-screen bg-white relative overflow-x-hidden font-sans md:shadow-[0_0_0_1px_rgba(255,255,255,0.1),0_25px_80px_rgba(0,0,0,0.5)]"
+                  style={{ maxWidth: '430px' }}
+                >
+                  <Routes>
+                    <Route path="/" element={<Splash />} />
+                    <Route path="/login" element={<Login />} />
+                    <Route path="/pretest" element={<Pretest />} />
+                    <Route path="/dashboard" element={<RequirePretest><Dashboard /></RequirePretest>} />
+                    <Route path="/modules" element={<RequirePretest><Modules /></RequirePretest>} />
+                    <Route path="/module/:id" element={<RequirePretest><ModuleDetail /></RequirePretest>} />
+                    <Route path="/quiz" element={<RequirePretest><Quiz /></RequirePretest>} />
+                    <Route path="/profile" element={<RequirePretest><Profile /></RequirePretest>} />
+                  </Routes>
+                </div>
               </div>
-            </div>
-          }
-        />
-      </Routes>
-    </Router>
+            }
+          />
+        </Routes>
+      </Router>
+    </PopupProvider>
   );
 }
 
