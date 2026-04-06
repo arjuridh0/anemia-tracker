@@ -110,23 +110,85 @@ export default function Admin() {
     }
   };
 
+  // Pool karakter yang digunakan untuk generate kode (tanpa huruf ambigu I, O, 0, 1)
+  const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789#%*@!&';
+
+  const generateSingleCode = () => {
+    let code = '';
+    for (let i = 0; i < 6; i++) {
+      code += CODE_CHARS.charAt(Math.floor(Math.random() * CODE_CHARS.length));
+    }
+    return code;
+  };
+
   const generateCodes = async () => {
     setLoading(true);
     setError(null);
-    const newCodes = [];
-    for (let i = 0; i < generateCount; i++) {
-      const code = Math.random().toString(36).substring(2, 8).toUpperCase();
-      newCodes.push({ code });
-    }
-    
     try {
+      // 1. Ambil semua kode yang sudah ada di database untuk cek duplikasi
+      const { data: existingCodes } = await supabase.from('respondent_codes').select('code');
+      const existingSet = new Set((existingCodes || []).map(c => c.code));
+
+      // 2. Generate kode unik
+      const newCodes = [];
+      let attempts = 0;
+      const maxAttempts = generateCount * 20; // Batas aman agar tidak infinite loop
+
+      while (newCodes.length < generateCount && attempts < maxAttempts) {
+        attempts++;
+        const code = generateSingleCode();
+        // Pastikan tidak duplikat dengan database DAN dengan batch yang sedang di-generate
+        if (!existingSet.has(code) && !newCodes.find(c => c.code === code)) {
+          newCodes.push({ code });
+          existingSet.add(code); // Tandai agar tidak duplikat dalam batch ini
+        }
+      }
+
+      if (newCodes.length < generateCount) {
+        alert(`Hanya berhasil membuat ${newCodes.length} kode unik dari ${generateCount} yang diminta.`);
+      }
+
+      // 3. Insert ke database
       const { error: err } = await supabase.from('respondent_codes').insert(newCodes);
       if (err) throw err;
       await fetchData();
-      alert(`${generateCount} kode berhasil dibuat!`);
+      alert(`✅ ${newCodes.length} kode unik berhasil dibuat!`);
     } catch (err) {
       console.error('Insert Error:', err);
       setError('Gagal membuat kode: ' + (err.message || 'Cek koneksi database.'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteCode = async (code) => {
+    if (!window.confirm(`Yakin ingin menghapus kode "${code}"?`)) return;
+    setLoading(true);
+    try {
+      const { error: err } = await supabase.from('respondent_codes').delete().eq('code', code);
+      if (err) throw err;
+      await fetchData();
+    } catch (err) {
+      console.error('Delete Code Error:', err);
+      alert('Gagal menghapus kode: ' + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteAllUnusedCodes = async () => {
+    const unusedCount = codes.filter(c => !c.is_used).length;
+    if (unusedCount === 0) return alert('Tidak ada kode yang belum terpakai.');
+    if (!window.confirm(`⚠️ Yakin ingin MENGHAPUS ${unusedCount} kode yang belum terpakai?\n\nAksi ini tidak bisa dibatalkan!`)) return;
+    setLoading(true);
+    try {
+      const { error: err } = await supabase.from('respondent_codes').delete().eq('is_used', false);
+      if (err) throw err;
+      await fetchData();
+      alert(`✅ ${unusedCount} kode berhasil dihapus!`);
+    } catch (err) {
+      console.error('Bulk Delete Error:', err);
+      alert('Gagal menghapus kode: ' + err.message);
     } finally {
       setLoading(false);
     }
@@ -712,23 +774,47 @@ export default function Admin() {
 
                 {/* CODES LIST */}
                 <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-sm overflow-hidden">
-                   <div className="p-8 border-b border-gray-50 flex justify-between items-center">
-                      <h3 className="text-xl font-black text-gray-800 tracking-tight">Daftar Kode Sah</h3>
-                      <span className="px-4 py-1.5 bg-gray-100 rounded-full text-xs font-black text-gray-500 uppercase tracking-widest">
-                        {codes.filter(c => !c.is_used).length} Sisa / {codes.length} Total
-                      </span>
+                   <div className="p-8 border-b border-gray-50 flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
+                      <div>
+                        <h3 className="text-xl font-black text-gray-800 tracking-tight">Daftar Kode Sah</h3>
+                        <span className="text-xs font-bold text-gray-400 mt-1">
+                          {codes.filter(c => !c.is_used).length} Sisa / {codes.length} Total
+                        </span>
+                      </div>
+                      <div className="flex gap-3">
+                        {codes.filter(c => !c.is_used).length > 0 && (
+                          <button
+                            onClick={handleDeleteAllUnusedCodes}
+                            disabled={loading}
+                            className="flex items-center gap-2 px-5 py-3 bg-red-50 text-red-500 rounded-2xl font-bold text-xs border border-red-100 hover:bg-red-500 hover:text-white transition-all active:scale-[0.97] disabled:opacity-50"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                            <span>Hapus Semua Belum Terpakai ({codes.filter(c => !c.is_used).length})</span>
+                          </button>
+                        )}
+                      </div>
                    </div>
                    <div className="max-h-125 overflow-y-auto">
                       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 p-8">
                         {codes.map((c) => (
                           <div 
                             key={c.code}
-                            className={`p-4 rounded-2xl border-2 transition-all flex flex-col items-center justify-center gap-2 group ${c.is_used ? 'bg-gray-50 border-gray-100 opacity-50' : 'bg-white border-gray-100 hover:border-green-200 hover:shadow-lg hover:shadow-green-500/5 cursor-pointer'}`}
+                            className={`p-4 rounded-2xl border-2 transition-all flex flex-col items-center justify-center gap-2 group relative ${c.is_used ? 'bg-gray-50 border-gray-100 opacity-50' : 'bg-white border-gray-100 hover:border-green-200 hover:shadow-lg hover:shadow-green-500/5'}`}
                           >
                             <span className="font-mono text-lg font-black tracking-widest group-hover:text-green-600 transition-colors uppercase">{c.code}</span>
                             <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md ${c.is_used ? 'bg-red-50 text-red-400' : 'bg-green-50 text-green-500'}`}>
                               {c.is_used ? 'Terpakai' : 'Siap Pakai'}
                             </span>
+                            {/* Tombol hapus hanya untuk kode yang belum terpakai */}
+                            {!c.is_used && (
+                              <button
+                                onClick={(e) => { e.stopPropagation(); handleDeleteCode(c.code); }}
+                                className="absolute -top-2 -right-2 w-7 h-7 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all hover:bg-red-600 shadow-lg shadow-red-500/30 active:scale-90"
+                                title="Hapus kode ini"
+                              >
+                                <X className="w-3.5 h-3.5" strokeWidth={3} />
+                              </button>
+                            )}
                           </div>
                         ))}
                       </div>

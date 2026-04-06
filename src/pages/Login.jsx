@@ -38,6 +38,13 @@ export default function Login() {
           .maybeSingle();
 
         if (existingUser) {
+          // VALIDASI NAMA: Nama yang diinput HARUS cocok dengan yang terdaftar
+          if (nama.trim().toLowerCase() !== existingUser.nama.toLowerCase()) {
+            alert('⚠️ Nama tidak sesuai dengan kode yang terdaftar!\n\nPastikan kamu mengetik nama yang sama seperti saat pertama kali mendaftar.');
+            setLoading(false);
+            return;
+          }
+
           // LOGIN BIASA (Sinkronisasi data)
           localStorage.setItem('user', JSON.stringify({ nama: existingUser.nama, kode: existingUser.kode }));
           localStorage.setItem('user_id', existingUser.id);
